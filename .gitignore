@@ -205,3 +205,24 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =================================
+# Baseball Report 앱 관련
+# =================================
+# 데이터 파일 (로컬에서만 사용)
+game_records.json
+
+# Streamlit 설정
+.streamlit/secrets.toml
+.streamlit/uploads/
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
