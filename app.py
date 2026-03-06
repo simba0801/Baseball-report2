@@ -1,6 +1,5 @@
 """
-Baseball Report - 투수 성적 분석 시스템
-야구경기에서 투수가 던진 공을 기록하고 경기별 성적을 분석하는 Streamlit 앱
+Baseball Report - 야구 선수 기록 분석 시스템
 """
 
 import streamlit as st
@@ -16,38 +15,63 @@ st.set_page_config(
     page_title="Baseball Report",
     page_icon="⚾",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ====================================
 # 💾 데이터 저장소 설정
 # ====================================
-DATA_FILE = "game_records.json"
-REFERENCE_FILE = "reference_data.json"
+USERS_FILE = "users.json"
+PLAYERS_FILE = "players.json"
+RECORDS_FILE = "records.json"
 
-def load_data():
-    """게임 데이터 로드"""
-    if Path(DATA_FILE).exists():
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+def load_users():
+    """사용자 정보 로드"""
+    if Path(USERS_FILE).exists():
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {"games": []}
+    return {}
 
-def save_data(data):
-    """게임 데이터 저장"""
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_users(users):
+    """사용자 정보 저장"""
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
 
-def load_reference_data():
-    """기준정보 데이터 로드"""
-    if Path(REFERENCE_FILE).exists():
-        with open(REFERENCE_FILE, 'r', encoding='utf-8') as f:
+def load_players():
+    """선수 정보 로드"""
+    if Path(PLAYERS_FILE).exists():
+        with open(PLAYERS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {"reference_info": []}
+    return {}
 
-def save_reference_data(data):
-    """기준정보 데이터 저장"""
-    with open(REFERENCE_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_players(players):
+    """선수 정보 저장"""
+    with open(PLAYERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(players, f, ensure_ascii=False, indent=2)
+
+def load_records():
+    """경기 기록 로드"""
+    if Path(RECORDS_FILE).exists():
+        with open(RECORDS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_records(records):
+    """경기 기록 저장"""
+    with open(RECORDS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+
+# ====================================
+# 🔐 세션 상태 초기화
+# ====================================
+if "current_screen" not in st.session_state:
+    st.session_state.current_screen = "home"
+
+if "logged_in_user" not in st.session_state:
+    st.session_state.logged_in_user = None
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
 
 # ====================================
 # 🎨 CSS 스타일 적용
@@ -61,466 +85,393 @@ st.markdown("""
             font-weight: bold;
             margin-bottom: 20px;
         }
-        .stat-box {
+        .home-button {
+            padding: 20px;
             background-color: #f0f2f6;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border-left: 4px solid #1f77b4;
-        }
-        .strike {
-            color: #d62728;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid #1f77b4;
+            font-size: 18px;
             font-weight: bold;
-        }
-        .ball {
-            color: #2ca02c;
-            font-weight: bold;
+            transition: background-color 0.3s;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # ====================================
-# 🏠 메인 페이지
+# 📱 화면 1: 홈 화면
 # ====================================
-def main():
+def screen_home():
     st.markdown('<div class="header">⚾ Baseball Report</div>', unsafe_allow_html=True)
-    st.markdown("투수 성적 분석 및 기록 시스템")
+    st.markdown("---")
     
-    # 탭 생성
-    tab1, tab2, tab3, tab4 = st.tabs(["📝 new_game", "📊 View Stats", "📈 Analysis", "⚙️ 기준정보"])
-    
-    # ====================================
-    # TAB 1: 경기 기록
-    # ====================================
-    with tab1:
-        st.subheader("🎮 새로운 경기 기록")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            game_date = st.date_input("📅 경기 날짜", value=datetime.now())
-        with col2:
-            pitcher_name = st.text_input("👤 투수 이름", placeholder="예: 박찬호")
-        
-        col3, col4 = st.columns(2)
+    # 로그인 상태 표시
+    if st.session_state.logged_in_user:
+        col1, col2, col3 = st.columns([2, 1, 1])
         with col3:
-            opponent = st.text_input("🏟️ 상대팀", placeholder="예: 두산 베어스")
-        with col4:
-            inning = st.number_input("⏱️ 이닝", min_value=1, max_value=9, value=1)
-        
-        st.markdown("---")
-        
-        # 투구 기록 입력
-        st.subheader("📊 투구 기록")
-        
-        # 기준정보 로드
-        ref_data = load_reference_data()
-        
-        # 고정 기본값 및 기준정보 조합
-        pitch_types = ["Fast Ball", "Curveball", "Slider", "Changeup", "Sinker", "기타"]
-        results = ["⚾ Strike", "⚾ Ball", "🎯 Strike Out", "🏃 Hit", "기타"]
-        locations = ["🎯 Center", "⬆️ High", "⬇️ Low", "⬅️ Inside", "➡️ Outside",
-                    "↖️ High-Inside", "↗️ High-Outside", "↙️ Low-Inside", "↘️ Low-Outside", "기타"]
-        
-        # 기준정보가 있으면 추가
-        for ref in ref_data["reference_info"]:
-            if ref["category"] == "공의 종류" and ref["code"] not in pitch_types:
-                pitch_types.insert(-1, ref["code"])
-            elif ref["category"] == "타격 결과" and ref["code"] not in results:
-                results.insert(-1, ref["code"])
-            elif ref["category"] == "위치" and ref["code"] not in locations:
-                locations.insert(-1, ref["code"])
-        
-        col5, col6, col7 = st.columns(3)
-        
-        with col5:
-            pitch_type = st.selectbox(
-                "공의 종류",
-                pitch_types
-            )
-        
-        with col6:
-            result = st.selectbox(
-                "결과",
-                results
-            )
-        
-        with col7:
-            location = st.selectbox(
-                "위치 (Zone)",
-                locations
-            )
-        
-        # 추가 정보
-        col8, col9 = st.columns(2)
-        with col8:
-            speed = st.number_input("⚡ 투구 속도 (km/h)", min_value=80, max_value=160, value=130)
-        with col9:
-            notes = st.text_input("📝 메모", placeholder="예: 좋은 컨트롤")
-        
-        st.markdown("---")
-        
-        # 저장 버튼
-        if st.button("💾 투구 기록 저장", use_container_width=True):
-            data = load_data()
-            
-            # 기존 게임 확인
-            game_key = f"{pitcher_name}_{game_date}"
-            game = None
-            for g in data["games"]:
-                if g["game_key"] == game_key:
-                    game = g
-                    break
-            
-            # 새 게임 생성
-            if game is None:
-                game = {
-                    "game_key": game_key,
-                    "date": str(game_date),
-                    "pitcher": pitcher_name,
-                    "opponent": opponent,
-                    "pitches": []
+            if st.button("🚪 로그아웃", use_container_width=True):
+                st.session_state.logged_in_user = None
+                st.session_state.user_id = None
+                st.rerun()
+        with col1:
+            st.success(f"✅ {st.session_state.logged_in_user}님이 로그인 중입니다")
+    
+    st.markdown("### 메인 메뉴")
+    st.markdown("")
+    
+    # 4개의 버튼을 가로로 배치
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🔐 로그인", use_container_width=True, key="btn_login"):
+            st.session_state.current_screen = "login"
+            st.rerun()
+    
+    with col2:
+        if st.button("📝 선수등록", use_container_width=True, key="btn_register"):
+            st.session_state.current_screen = "signup"
+            st.rerun()
+    
+    with col3:
+        if st.button("📋 기록하기", use_container_width=True, key="btn_record"):
+            if st.session_state.logged_in_user:
+                st.session_state.current_screen = "record_input"
+            else:
+                st.session_state.current_screen = "signup"
+            st.rerun()
+    
+    with col4:
+        if st.button("📊 결과조회", use_container_width=True, key="btn_results"):
+            if st.session_state.logged_in_user:
+                st.session_state.current_screen = "results"
+            else:
+                st.session_state.current_screen = "signup"
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### 📌 사용 가능한 기능")
+    st.markdown("""
+    - **로그인**: 기존 사용자 로그인
+    - **선수등록**: 이메일, ID, PW로 회원가입 후 선수 정보 입력
+    - **기록하기**: 로그인 후 경기 기록 입력
+    - **결과조회**: 로그인 후 입력된 기록 조회
+    """)
+
+# ====================================
+# 📱 화면 2: 회원가입 화면
+# ====================================
+def screen_signup():
+    st.markdown('<div class="header">📝 회원가입</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    if st.button("← 뒤로가기", key="back_signup"):
+        st.session_state.current_screen = "home"
+        st.rerun()
+    
+    st.markdown("### 회원 정보 입력")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        email = st.text_input("📧 이메일", placeholder="example@email.com")
+    
+    with col2:
+        user_id = st.text_input("👤 ID", placeholder="사용자 아이디")
+    
+    password = st.text_input("🔐 비밀번호", type="password", placeholder="비밀번호 입력")
+    password_confirm = st.text_input("🔐 비밀번호 확인", type="password", placeholder="비밀번호 확인")
+    
+    st.markdown("---")
+    
+    if st.button("✅ 가입하기", use_container_width=True):
+        if not email or not user_id or not password or not password_confirm:
+            st.error("❌ 모든 필드를 입력해주세요!")
+        elif password != password_confirm:
+            st.error("❌ 비밀번호가 일치하지 않습니다!")
+        else:
+            users = load_users()
+            if user_id in users:
+                st.error(f"❌ '{user_id}'는 이미 사용 중인 ID입니다!")
+            elif any(u["email"] == email for u in users.values()):
+                st.error(f"❌ '{email}'는 이미 등록된 이메일입니다!")
+            else:
+                # 새 사용자 추가
+                users[user_id] = {
+                    "email": email,
+                    "password": password,  # 실제 앱에서는 해시 처리 필요
+                    "created_date": datetime.now().isoformat()
                 }
-                data["games"].append(game)
+                save_users(users)
+                st.success("✅ 회원가입이 완료되었습니다!")
+                st.session_state.logged_in_user = user_id
+                st.session_state.user_id = user_id
+                st.markdown("---")
+                st.markdown("### 📋 선수 정보 입력")
+                
+                # 선수 정보 입력
+                name = st.text_input("👤 이름", placeholder="선수 이름")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    height = st.number_input("📏 키 (cm)", min_value=150, max_value=220, value=180)
+                with col2:
+                    weight = st.number_input("⚖️ 몸무게 (kg)", min_value=50, max_value=150, value=80)
+                
+                st.markdown("#### 📚 학력")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    elementary_grad = st.number_input("초등학교 졸업연도", min_value=2000, max_value=2026, value=2012)
+                with col2:
+                    middle_grad = st.number_input("중학교 졸업연도", min_value=2000, max_value=2026, value=2015)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    high_school = st.text_input("고등학교명", placeholder="고등학교명 입력")
+                with col2:
+                    high_grad = st.number_input("고등학교 졸업연도", min_value=2000, max_value=2026, value=2018)
+                
+                st.markdown("---")
+                
+                if st.button("💾 선수 정보 저장 및 홈으로", use_container_width=True):
+                    if not name or not high_school:
+                        st.error("❌ 이름과 고등학교명은 필수입니다!")
+                    else:
+                        players = load_players()
+                        players[user_id] = {
+                            "name": name,
+                            "height": height,
+                            "weight": weight,
+                            "elementary_graduation": elementary_grad,
+                            "middle_graduation": middle_grad,
+                            "high_school": high_school,
+                            "high_graduation": high_grad,
+                            "created_date": datetime.now().isoformat()
+                        }
+                        save_players(players)
+                        st.success("✅ 선수 정보가 저장되었습니다!")
+                        st.balloons()
+                        st.session_state.current_screen = "home"
+                        st.rerun()
+
+# ====================================
+# 📱 화면 3: 로그인 화면
+# ====================================
+def screen_login():
+    st.markdown('<div class="header">🔐 로그인</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    if st.button("← 뒤로가기", key="back_login"):
+        st.session_state.current_screen = "home"
+        st.rerun()
+    
+    st.markdown("### 로그인 정보 입력")
+    
+    user_id = st.text_input("👤 ID", placeholder="사용자 아이디")
+    password = st.text_input("🔐 비밀번호", type="password", placeholder="비밀번호 입력")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("✅ 로그인", use_container_width=True):
+            if not user_id or not password:
+                st.error("❌ ID와 비밀번호를 입력해주세요!")
+            else:
+                users = load_users()
+                if user_id not in users:
+                    st.error("❌ 존재하지 않는 ID입니다!")
+                elif users[user_id]["password"] != password:
+                    st.error("❌ 비밀번호가 일치하지 않습니다!")
+                else:
+                    st.session_state.logged_in_user = user_id
+                    st.session_state.user_id = user_id
+                    st.success(f"✅ {user_id}님이 로그인했습니다!")
+                    st.session_state.current_screen = "home"
+                    st.rerun()
+    
+    with col2:
+        if st.button("📝 회원가입", use_container_width=True):
+            st.session_state.current_screen = "signup"
+            st.rerun()
+
+# ====================================
+# 📱 화면 4: 기록하기 화면
+# ====================================
+def screen_record_input():
+    st.markdown('<div class="header">📋 기록하기</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    if st.button("← 뒤로가기", key="back_record"):
+        st.session_state.current_screen = "home"
+        st.rerun()
+    
+    st.markdown(f"### {st.session_state.logged_in_user}님의 경기 기록")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        game_date = st.date_input("📅 경기 날짜", value=datetime.now())
+    with col2:
+        opponent = st.text_input("🏟️ 상대팀", placeholder="예: 두산 베어스")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        inning = st.number_input("⏱️ 이닝", min_value=1, max_value=9, value=1)
+    with col2:
+        pitch_count = st.number_input("🔢 투구 수", min_value=1, max_value=50, value=1)
+    
+    st.markdown("###  투구 유형 및 결과")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        pitch_type = st.selectbox(
+            "공의 종류",
+            ["직구", "커브", "슬라이더", "체인지업", "싱크", "기타"]
+        )
+    
+    with col2:
+        result = st.selectbox(
+            "결과",
+            ["스트라이크", "볼", "아웃", "안타", "기타"]
+        )
+    
+    with col3:
+        location = st.selectbox(
+            "위치",
+            ["중앙", "상단", "하단", "내측", "외측", "기타"]
+        )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        speed = st.number_input("⚡ 투구 속도 (km/h)", min_value=80, max_value=160, value=130)
+    with col2:
+        notes = st.text_input("📝 메모", placeholder="기록 입력")
+    
+    st.markdown("---")
+    
+    if st.button("💾 기록 저장", use_container_width=True):
+        if not opponent:
+            st.error("❌ 상대팀을 입력해주세요!")
+        else:
+            records = load_records()
             
-            # 투구 추가
-            pitch = {
+            if st.session_state.user_id not in records:
+                records[st.session_state.user_id] = []
+            
+            record = {
+                "date": str(game_date),
+                "opponent": opponent,
                 "inning": inning,
-                "type": pitch_type,
+                "pitch_count": pitch_count,
+                "pitch_type": pitch_type,
                 "result": result,
                 "location": location,
                 "speed": speed,
                 "notes": notes,
-                "timestamp": datetime.now().isoformat()
+                "created_date": datetime.now().isoformat()
             }
-            game["pitches"].append(pitch)
             
-            save_data(data)
-            st.success("✅ 투구 기록이 저장되었습니다!")
+            records[st.session_state.user_id].append(record)
+            save_records(records)
+            st.success("✅ 기록이 저장되었습니다!")
             st.balloons()
+
+# ====================================
+# 📱 화면 5: 결과조회 화면
+# ====================================
+def screen_results():
+    st.markdown('<div class="header">📊 결과조회</div>', unsafe_allow_html=True)
+    st.markdown("---")
     
-    # ====================================
-    # TAB 2: 성적 조회
-    # ====================================
-    with tab2:
-        st.subheader("📊 경기별 성적")
-        
-        data = load_data()
-        
-        if not data["games"]:
-            st.info("📭 저장된 경기 기록이 없습니다. 새로운 경기를 기록해주세요!")
-        else:
-            # 경기 선택
-            game_names = [f"{g['pitcher']} vs {g['opponent']} ({g['date']})" for g in data["games"]]
-            selected_game_idx = st.selectbox("경기 선택", range(len(game_names)), format_func=lambda i: game_names[i])
+    if st.button("← 뒤로가기", key="back_results"):
+        st.session_state.current_screen = "home"
+        st.rerun()
+    
+    records = load_records()
+    players = load_players()
+    
+    user_id = st.session_state.user_id
+    
+    if user_id not in records or not records[user_id]:
+        st.info("📭 저장된 기록이 없습니다. 기록하기에서 경기를 입력해주세요!")
+    else:
+        # 선수 정보 표시
+        if user_id in players:
+            player = players[user_id]
+            st.markdown(f"### {player['name']} 선수 정보")
             
-            game = data["games"][selected_game_idx]
-            
-            st.markdown(f"""
-            ### {game['pitcher']} vs {game['opponent']}
-            📅 {game['date']}
-            """)
-            
-            # 통계 계산
-            pitches = game["pitches"]
-            total_pitches = len(pitches)
-            strikes = len([p for p in pitches if "Strike" in p["result"]])
-            balls = len([p for p in pitches if "Ball" in p["result"]])
-            
-            # 통계 표시
             col1, col2, col3, col4 = st.columns(4)
-            
             with col1:
-                st.metric("⚾ 총 투구수", total_pitches)
+                st.metric("키", f"{player['height']}cm")
             with col2:
-                st.metric("✅ 스트라이크", strikes)
+                st.metric("몸무게", f"{player['weight']}kg")
             with col3:
-                st.metric("❌ 볼", balls)
+                st.metric("중학 졸업", player['middle_graduation'])
             with col4:
-                strike_rate = (strikes / total_pitches * 100) if total_pitches > 0 else 0
-                st.metric("📊 스트라이크율", f"{strike_rate:.1f}%")
+                st.metric("고등학 졸업", f"{player['high_graduation']} ({player['high_school']})")
             
             st.markdown("---")
-            
-            # 투구 상세 기록
-            st.subheader("📋 투구 상세 기록")
-            
-            for i, pitch in enumerate(pitches, 1):
-                with st.expander(f"투구 #{i} - {pitch['result']} ({pitch['type']})", expanded=False):
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.write(f"**이닝**: {pitch['inning']}")
-                        st.write(f"**공의 종류**: {pitch['type']}")
-                    with col2:
-                        st.write(f"**결과**: {pitch['result']}")
-                        st.write(f"**위치**: {pitch['location']}")
-                    with col3:
-                        st.write(f"**투구 속도**: {pitch['speed']} km/h")
-                        if pitch['notes']:
-                            st.write(f"**메모**: {pitch['notes']}")
-            
-            # 투구 삭제
-            st.markdown("---")
-            if st.button("🗑️ 이 경기 기록 삭제", use_container_width=True):
-                data["games"].pop(selected_game_idx)
-                save_data(data)
-                st.warning("⚠️ 경기 기록이 삭제되었습니다!")
-                st.rerun()
-    
-    # ====================================
-    # TAB 3: 분석
-    # ====================================
-    with tab3:
-        st.subheader("📈 투수 성적 분석")
         
-        data = load_data()
+        # 경기 기록 표시
+        st.markdown("### 📋 경기 기록 목록")
         
-        if not data["games"]:
-            st.info("📭 분석할 데이터가 없습니다.")
-        else:
-            # 투수별 통계
-            pitcher_stats = {}
-            
-            for game in data["games"]:
-                pitcher = game["pitcher"]
-                if pitcher not in pitcher_stats:
-                    pitcher_stats[pitcher] = {
-                        "games": 0,
-                        "total_pitches": 0,
-                        "strikes": 0,
-                        "balls": 0,
-                        "avg_speed": [],
-                        "pitch_types": {},
-                        "locations": {}
-                    }
-                
-                stats = pitcher_stats[pitcher]
-                stats["games"] += 1
-                
-                pitches = game["pitches"]
-                stats["total_pitches"] += len(pitches)
-                
-                for pitch in pitches:
-                    if "Strike" in pitch["result"]:
-                        stats["strikes"] += 1
-                    elif "Ball" in pitch["result"]:
-                        stats["balls"] += 1
-                    
-                    stats["avg_speed"].append(pitch["speed"])
-                    
-                    # 공의 종류 집계
-                    pitch_type = pitch["type"]
-                    stats["pitch_types"][pitch_type] = stats["pitch_types"].get(pitch_type, 0) + 1
-                    
-                    # 위치 집계
-                    location = pitch["location"]
-                    stats["locations"][location] = stats["locations"].get(location, 0) + 1
-            
-            # 투수별 통계 표시
-            for pitcher, stats in pitcher_stats.items():
-                st.subheader(f"🎯 {pitcher}")
-                
-                col1, col2, col3, col4, col5 = st.columns(5)
-                
-                with col1:
-                    st.metric("경기수", stats["games"])
-                with col2:
-                    st.metric("총 투구", stats["total_pitches"])
-                with col3:
-                    st.metric("스트라이크", stats["strikes"])
-                with col4:
-                    st.metric("볼", stats["balls"])
-                with col5:
-                    avg_speed = sum(stats["avg_speed"]) / len(stats["avg_speed"]) if stats["avg_speed"] else 0
-                    st.metric("평균 속도", f"{avg_speed:.1f}")
-                
-                # 공의 종류 분포
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**공의 종류 분포**")
-                    pitch_df = pd.DataFrame(list(stats["pitch_types"].items()), columns=["공의 종류", "횟수"])
-                    st.bar_chart(pitch_df.set_index("공의 종류"))
-                
-                with col2:
-                    st.write("**위치 분포**")
-                    location_df = pd.DataFrame(list(stats["locations"].items()), columns=["위치", "횟수"])
-                    st.bar_chart(location_df.set_index("위치"))
-                
-                st.markdown("---")
-    
-    # ====================================
-    # TAB 4: 기준정보
-    # ====================================
-    with tab4:
-        st.subheader("⚙️ 기준정보 관리")
-        st.info("투수 기록 시 사용할 기준정보(마스터 데이터)를 추가하고 수정할 수 있습니다.")
+        user_records = records[user_id]
         
-        ref_data = load_reference_data()
+        # 통계 계산
+        total_records = len(user_records)
+        total_pitches = sum([r["pitch_count"] for r in user_records])
+        avg_speed = sum([r["speed"] for r in user_records]) / len(user_records) if user_records else 0
         
-        # 기준정보 추가 및 수정 폼
-        col1, col2 = st.columns([2, 1])
-        
+        col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown("### 📋 기준정보 추가/수정")
-        
+            st.metric("⚾ 총 경기수", total_records)
         with col2:
-            view_mode = st.radio("보기 모드", ["추가", "조회"], horizontal=True)
+            st.metric("📊 총 투구수", total_pitches)
+        with col3:
+            st.metric("⚡ 평균 속도", f"{avg_speed:.1f} km/h")
         
         st.markdown("---")
         
-        if view_mode == "추가":
-            st.subheader("➕ 새로운 기준정보 추가")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                category = st.selectbox(
-                    "분류",
-                    ["공의 종류", "타격 결과", "위치", "경기 유형", "투수 역할"]
-                )
-            
-            with col2:
-                code_value = st.text_input("코드", placeholder="예: FF, CB, SL")
-            
-            col3, col4 = st.columns(2)
-            
-            with col3:
-                description = st.text_input("설명", placeholder="예: Fast Ball (직구), Curveball (커브)")
-            
-            with col4:
-                detail_info = st.text_input("상세 정보", placeholder="예: 평균 140km/h")
-            
-            note = st.text_area("비고", placeholder="추가 설명 입력", height=80)
-            
-            st.markdown("---")
-            
-            if st.button("💾 기준정보 저장", use_container_width=True):
-                if not code_value or not description:
-                    st.error("❌ 코드와 설명은 필수입니다!")
-                else:
-                    new_info = {
-                        "id": len(ref_data["reference_info"]) + 1,
-                        "category": category,
-                        "code": code_value,
-                        "description": description,
-                        "detail_info": detail_info,
-                        "note": note,
-                        "created_date": datetime.now().isoformat()
-                    }
-                    
-                    ref_data["reference_info"].append(new_info)
-                    save_reference_data(ref_data)
-                    st.success(f"✅ '{code_value}' 기준정보가 저장되었습니다!")
-                    st.rerun()
-        
-        else:  # 조회 모드
-            st.subheader("📖 기준정보 조회 및 관리")
-            
-            if not ref_data["reference_info"]:
-                st.info("📭 저장된 기준정보가 없습니다.")
-            else:
-                # 분류별 필터
-                categories = list(set([r["category"] for r in ref_data["reference_info"]]))
-                selected_category = st.multiselect("분류 선택", categories, default=categories)
+        # 경기별 상세 기록
+        for i, record in enumerate(user_records, 1):
+            with st.expander(f"경기 #{i} - {record['date']} vs {record['opponent']}", expanded=False):
+                col1, col2, col3 = st.columns(3)
                 
-                # 필터링된 데이터
-                filtered_data = [r for r in ref_data["reference_info"] if r["category"] in selected_category]
+                with col1:
+                    st.write(f"**날짜**: {record['date']}")
+                    st.write(f"**상대팀**: {record['opponent']}")
+                    st.write(f"**이닝**: {record['inning']}")
                 
-                if not filtered_data:
-                    st.info("선택한 분류의 기준정보가 없습니다.")
-                else:
-                    # 테이블 형식으로 표시
-                    st.markdown("### 📊 기준정보 목록")
-                    
-                    for idx, info in enumerate(filtered_data):
-                        with st.expander(f"🏷️ {info['category']} - {info['code']} ({info['description']})", expanded=False):
-                            col1, col2, col3 = st.columns([2, 2, 1])
-                            
-                            with col1:
-                                st.write(f"**분류**: {info['category']}")
-                                st.write(f"**코드**: {info['code']}")
-                                st.write(f"**설명**: {info['description']}")
-                            
-                            with col2:
-                                st.write(f"**상세 정보**: {info['detail_info']}")
-                                st.write(f"**비고**: {info['note']}")
-                            
-                            with col3:
-                                st.write(f"**ID**: {info['id']}")
-                                created = datetime.fromisoformat(info['created_date']).strftime("%Y-%m-%d %H:%M")
-                                st.write(f"**생성일**: {created}")
-                            
-                            # 수정/삭제 버튼
-                            col_edit, col_del = st.columns(2)
-                            
-                            with col_edit:
-                                if st.button(f"✏️ 수정", key=f"edit_{info['id']}"):
-                                    st.session_state[f"edit_{info['id']}"] = True
-                            
-                            with col_del:
-                                if st.button(f"🗑️ 삭제", key=f"delete_{info['id']}"):
-                                    ref_data["reference_info"] = [r for r in ref_data["reference_info"] if r['id'] != info['id']]
-                                    save_reference_data(ref_data)
-                                    st.success("✅ 기준정보가 삭제되었습니다!")
-                                    st.rerun()
-                            
-                            # 수정 폼
-                            if st.session_state.get(f"edit_{info['id']}", False):
-                                st.markdown("---")
-                                st.write("**수정 정보**")
-                                
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    new_code = st.text_input("코드", value=info['code'], key=f"code_{info['id']}")
-                                    new_description = st.text_input("설명", value=info['description'], key=f"desc_{info['id']}")
-                                
-                                with col2:
-                                    new_detail = st.text_input("상세 정보", value=info['detail_info'], key=f"detail_{info['id']}")
-                                    new_note = st.text_input("비고", value=info['note'], key=f"note_{info['id']}")
-                                
-                                col_save, col_cancel = st.columns(2)
-                                
-                                with col_save:
-                                    if st.button("💾 수정 저장", key=f"save_{info['id']}"):
-                                        for r in ref_data["reference_info"]:
-                                            if r['id'] == info['id']:
-                                                r['code'] = new_code
-                                                r['description'] = new_description
-                                                r['detail_info'] = new_detail
-                                                r['note'] = new_note
-                                                break
-                                        save_reference_data(ref_data)
-                                        st.success("✅ 기준정보가 수정되었습니다!")
-                                        st.session_state[f"edit_{info['id']}"] = False
-                                        st.rerun()
-                                
-                                with col_cancel:
-                                    if st.button("❌ 취소", key=f"cancel_{info['id']}"):
-                                        st.session_state[f"edit_{info['id']}"] = False
-                                        st.rerun()
-                    
-                    # 통계
-                    st.markdown("---")
-                    st.subheader("📊 기준정보 통계")
-                    
-                    stat_col1, stat_col2, stat_col3 = st.columns(3)
-                    
-                    with stat_col1:
-                        st.metric("총 기준정보 수", len(ref_data["reference_info"]))
-                    
-                    with stat_col2:
-                        st.metric("분류 종류", len(categories))
-                    
-                    with stat_col3:
-                        category_counts = {}
-                        for r in ref_data["reference_info"]:
-                            cat = r["category"]
-                            category_counts[cat] = category_counts.get(cat, 0) + 1
-                        max_category = max(category_counts.values()) if category_counts else 0
-                        st.metric("최다 분류", max(category_counts, key=category_counts.get) if category_counts else "N/A")
+                with col2:
+                    st.write(f"**공의 종류**: {record['pitch_type']}")
+                    st.write(f"**결과**: {record['result']}")
+                    st.write(f"**위치**: {record['location']}")
+                
+                with col3:
+                    st.write(f"**투구 수**: {record['pitch_count']}")
+                    st.write(f"**투구 속도**: {record['speed']} km/h")
+                    if record['notes']:
+                        st.write(f"**메모**: {record['notes']}")
+
+# ====================================
+# 🏠 메인 페이지
+# ====================================
+def main():
+    """메인 네비게이션"""
+    if st.session_state.current_screen == "home":
+        screen_home()
+    elif st.session_state.current_screen == "signup":
+        screen_signup()
+    elif st.session_state.current_screen == "login":
+        screen_login()
+    elif st.session_state.current_screen == "record_input":
+        screen_record_input()
+    elif st.session_state.current_screen == "results":
+        screen_results()
 
 if __name__ == "__main__":
     main()
