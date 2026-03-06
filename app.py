@@ -298,10 +298,10 @@ def screen_login():
             st.rerun()
 
 # ====================================
-# 📱 화면 4: 기록하기 화면
+# 📱 화면 4: 기록하기 화면 (입력 상세화)
 # ====================================
 def screen_record_input():
-    st.markdown('<div class="header">📋 기록하기</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header">📋 입력하기</div>', unsafe_allow_html=True)
     st.markdown("---")
     
     if st.button("← 뒤로가기", key="back_record"):
@@ -310,75 +310,353 @@ def screen_record_input():
     
     st.markdown(f"### {st.session_state.logged_in_user}님의 경기 기록")
     
+    # ========== 세션 상태 초기화 ==========
+    if "game_session" not in st.session_state:
+        st.session_state.game_session = {
+            "date": datetime.now(),
+            "opponent": "",
+            "position": "선발",
+            "current_inning": 1,
+            "current_batter_order": 1,
+            "batter_hand": "우",
+            "out_count": 0,
+            "ball_count": 0,
+            "strike_count": 0,
+            "bases": {"1루": False, "2루": False, "3루": False},
+            "runners_home": 0,
+            "pitches": [],
+            "runs": 0,
+            "earned_runs": 0,
+            "errors": 0
+        }
+    
+    # ========== 1. 경기 정보 일반 입력 ==========
+    st.markdown("### 📋 경기 정보")
+    
     col1, col2 = st.columns(2)
-    
     with col1:
-        game_date = st.date_input("📅 경기 날짜", value=datetime.now())
+        game_date = st.date_input("📅 경기 날짜")
+        st.session_state.game_session["date"] = game_date
     with col2:
-        opponent = st.text_input("🏟️ 상대팀", placeholder="예: 두산 베어스")
+        opponent = st.text_input("🏟️ 상대팀", value=st.session_state.game_session["opponent"])
+        st.session_state.game_session["opponent"] = opponent
     
-    col1, col2 = st.columns(2)
-    with col1:
-        inning = st.number_input("⏱️ 이닝", min_value=1, max_value=9, value=1)
-    with col2:
-        pitch_count = st.number_input("🔢 투구 수", min_value=1, max_value=50, value=1)
-    
-    st.markdown("###  투구 유형 및 결과")
+    st.markdown("---")
+    st.markdown("### 👤 등판 정보")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        pitch_type = st.selectbox(
-            "공의 종류",
-            ["직구", "커브", "슬라이더", "체인지업", "싱크", "기타"]
+        position = st.selectbox(
+            "등판 구분",
+            ["선발", "중간", "마무리"],
+            index=["선발", "중간", "마무리"].index(st.session_state.game_session["position"])
         )
+        st.session_state.game_session["position"] = position
+    
+    # 선발인 경우 아웃카운트와 잔루 자동 설정
+    if position == "선발":
+        col2_out = 0
+        col2_bases = {"1루": False, "2루": False, "3루": False}
+        with col2:
+            st.write("**아웃카운트**: 노아웃 (자동)")
+        with col3:
+            st.write("**잔루**: 없음 (자동)")
+    else:
+        with col2:
+            out_count = st.selectbox(
+                "아웃카운트",
+                [0, 1, 2],
+                index=st.session_state.game_session["out_count"]
+            )
+            col2_out = out_count
+        
+        with col3:
+            col3_1, col3_2, col3_3 = st.columns(3)
+            with col3_1:
+                base1 = st.checkbox("1루", value=st.session_state.game_session["bases"]["1루"], key="base1")
+            with col3_2:
+                base2 = st.checkbox("2루", value=st.session_state.game_session["bases"]["2루"], key="base2")
+            with col3_3:
+                base3 = st.checkbox("3루", value=st.session_state.game_session["bases"]["3루"], key="base3")
+            col2_bases = {"1루": base1, "2루": base2, "3루": base3}
+    
+    st.session_state.game_session["out_count"] = col2_out
+    st.session_state.game_session["bases"] = col2_bases
+    
+    st.markdown("---")
+    st.markdown("### ⚾ 현재 상황")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        inning = st.selectbox(
+            "이닝",
+            range(1, 10),
+            index=st.session_state.game_session["current_inning"] - 1
+        )
+        st.session_state.game_session["current_inning"] = inning
     
     with col2:
-        result = st.selectbox(
-            "결과",
-            ["스트라이크", "볼", "아웃", "안타", "기타"]
+        batter_order = st.selectbox(
+            "타순",
+            range(1, 10),
+            index=st.session_state.game_session["current_batter_order"] - 1
         )
+        st.session_state.game_session["current_batter_order"] = batter_order
     
     with col3:
-        location = st.selectbox(
-            "위치",
-            ["중앙", "상단", "하단", "내측", "외측", "기타"]
+        batter_hand = st.selectbox(
+            "타자 좌/우",
+            ["좌", "우"],
+            index=0 if st.session_state.game_session["batter_hand"] == "좌" else 1
         )
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        speed = st.number_input("⚡ 투구 속도 (km/h)", min_value=80, max_value=160, value=130)
-    with col2:
-        notes = st.text_input("📝 메모", placeholder="기록 입력")
+        st.session_state.game_session["batter_hand"] = batter_hand
     
     st.markdown("---")
     
-    if st.button("💾 기록 저장", use_container_width=True):
+    # ========== 2. 상황판 표시 ==========
+    st.markdown("### 📊 현재 볼카운트")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Ball", st.session_state.game_session["ball_count"], delta=None)
+    with col2:
+        st.metric("Strike", st.session_state.game_session["strike_count"], delta=None)
+    with col3:
+        st.metric("Out", st.session_state.game_session["out_count"], delta=None)
+    with col4:
+        st.metric("Runs", f"{st.session_state.game_session['runs']} ({st.session_state.game_session['earned_runs']}E)", delta=None)
+    
+    # 잔루 표시
+    col1, col2, col3 = st.columns(3)
+    bases_display = []
+    if st.session_state.game_session["bases"]["1루"]:
+        bases_display.append("1루")
+    if st.session_state.game_session["bases"]["2루"]:
+        bases_display.append("2루")
+    if st.session_state.game_session["bases"]["3루"]:
+        bases_display.append("3루")
+    
+    st.write(f"**잔루**: {', '.join(bases_display) if bases_display else '없음'}")
+    
+    st.markdown("---")
+    st.markdown("### 🎾 투구 정보 입력")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        pitch_type = st.selectbox(
+            "구종",
+            ["직구", "커브", "슬라이더", "체인지업", "싱크", "포크", "기타"]
+        )
+    
+    with col2:
+        speed = st.number_input("⚡ 투구 속도 (km/h)", min_value=80, max_value=160, value=130)
+    
+    st.markdown("#### 결과 선택")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**방법 1: Zone 선택 (1~25)**")
+        st.markdown("""
+        - **1~9번**: Strike (그린존)
+        - **10~25번**: Ball
+        
+        |  |  |  |  |
+        |---|---|---|---|
+        |1|2|3|🟩|
+        |4|5|6|🟨|
+        |7|8|9|🟥|
+        |10|11|12|13|14|
+        |15|16|17|18|19|
+        |20|21|22|23|24|
+        |25| | | |
+        """)
+        zone_input = st.number_input("Zone 번호 입력 (1-25)", min_value=1, max_value=25, value=5, key="zone_input")
+    
+    with col2:
+        st.write("**방법 2: 수동 선택**")
+        col2_1, col2_2 = st.columns(2)
+        
+        with col2_1:
+            result_type = st.selectbox(
+                "결과",
+                ["Strike", "Ball"],
+                key="result_type"
+            )
+        
+        with col2_2:
+            location_options = [
+                "중앙(5)", "우상(3)", "우중(6)", "우하(9)",
+                "중상(2)", "중하(8)",
+                "좌상(1)", "좌중(4)", "좌하(7)",
+                "좌상외(11)", "중상외(12)", "우상외(13)",
+                "좌중외(15)", "중외(17)", "우중외(18)",
+                "좌하외(20)", "중하외(22)", "우하외(24)",
+                "기타(25)"
+            ]
+            location_select = st.selectbox(
+                "Location (Zone)",
+                location_options,
+                index=0
+            )
+            # Zone 번호 추출
+            location = int(location_select.split("(")[1].split(")")[0])
+    
+    st.markdown("---")
+    
+    col_pitch_1, col_pitch_2 = st.columns(2)
+    
+    with col_pitch_1:
+        if st.button("⚾ Zone 선택으로 투구 완료", use_container_width=True):
+            # Zone 선택 처리
+            if 1 <= zone_input <= 9:
+                result = "Strike"
+                zone_location = zone_input
+            else:
+                result = "Ball"
+                zone_location = zone_input
+            
+            # 볼카운트 업데이트 (야구 규칙)
+            if result == "Strike":
+                if st.session_state.game_session["strike_count"] < 2:
+                    st.session_state.game_session["strike_count"] += 1
+                # 3스트라이크: 계속 투구 가능 (파울 처리)
+            else:
+                st.session_state.game_session["ball_count"] += 1
+            
+            # 투구 기록 저장
+            pitch_record = {
+                "pitch_num": len(st.session_state.game_session["pitches"]) + 1,
+                "pitch_type": pitch_type,
+                "speed": speed,
+                "result": result,
+                "location": zone_location,
+                "ball_count": st.session_state.game_session["ball_count"],
+                "strike_count": st.session_state.game_session["strike_count"],
+                "out_count": st.session_state.game_session["out_count"]
+            }
+            st.session_state.game_session["pitches"].append(pitch_record)
+            st.success(f"✅ 투구 #{len(st.session_state.game_session['pitches'])} 완료 - {result}")
+            st.rerun()
+    
+    with col_pitch_2:
+        if st.button("⚾ 수동 선택으로 투구 완료", use_container_width=True):
+            if result_type == "Strike":
+                if st.session_state.game_session["strike_count"] < 2:
+                    st.session_state.game_session["strike_count"] += 1
+            else:
+                st.session_state.game_session["ball_count"] += 1
+            
+            pitch_record = {
+                "pitch_num": len(st.session_state.game_session["pitches"]) + 1,
+                "pitch_type": pitch_type,
+                "speed": speed,
+                "result": result_type,
+                "location": location,
+                "ball_count": st.session_state.game_session["ball_count"],
+                "strike_count": st.session_state.game_session["strike_count"],
+                "out_count": st.session_state.game_session["out_count"]
+            }
+            st.session_state.game_session["pitches"].append(pitch_record)
+            st.success(f"✅ 투구 #{len(st.session_state.game_session['pitches'])} 완료 - {result_type}")
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### 🏃 타격 결과 (타자가 타격한 경우)")
+    
+    col_hit_1, col_hit_2 = st.columns(2)
+    
+    with col_hit_1:
+        hit_type = st.selectbox(
+            "타격 결과",
+            ["안타 없음", "내야땅볼", "외야땅볼", "번트", "플라이", "라인드라이브", "홈런"],
+            key="hit_type"
+        )
+    
+    detail = None
+    with col_hit_2:
+        if hit_type != "안타 없음":
+            detail_options = {
+                "내야땅볼": ["1루지", "2루지", "3루지", "유격수", "2루수"],
+                "외야땅볼": ["좌측", "중앙", "우측"],
+                "번트": ["안전번트", "번트 플라이"],
+                "플라이": ["좌측", "중앙", "우측"],
+                "라인드라이브": ["좌측", "중앙", "우측"],
+                "홈런": ["좌측 울타리", "중앙 울타리", "우측 울타리"]
+            }
+            detail = st.selectbox(
+                "상세 내용",
+                detail_options.get(hit_type, [])
+            )
+        else:
+            st.write("타자가 타격하지 않음")
+    
+    if hit_type != "안타 없음":
+        st.markdown("---")
+        error_flag = st.checkbox("에러 발생")
+        
+        if st.button("✅ 타격 결과 저장", use_container_width=True):
+            # 홈을 누른 경우 실점 처리
+            if hit_type == "홈런":
+                st.session_state.game_session["runs"] += 1
+                if not error_flag:
+                    st.session_state.game_session["earned_runs"] += 1
+                else:
+                    st.session_state.game_session["errors"] += 1
+            
+            # 기타 주자 진루 처리
+            if detail and error_flag:
+                st.session_state.game_session["bases"]["1루"] = True
+            
+            st.success(f"✅ {hit_type} ({detail}) 저장됨")
+            st.balloons()
+    
+    st.markdown("---")
+    st.markdown("### 📝 투구 기록")
+    
+    if st.session_state.game_session["pitches"]:
+        for pitch in st.session_state.game_session["pitches"]:
+            st.write(f"**투구 #{pitch['pitch_num']}** | {pitch['pitch_type']} {pitch['speed']}km/h | {pitch['result']} (Zone {pitch['location']}) | B{pitch['ball_count']} S{pitch['strike_count']}")
+    else:
+        st.info("투구 기록이 없습니다.")
+    
+    st.markdown("---")
+    
+    if st.button("💾 경기 기록 저장", use_container_width=True):
         if not opponent:
             st.error("❌ 상대팀을 입력해주세요!")
+        elif len(st.session_state.game_session["pitches"]) == 0:
+            st.error("❌ 최소 1개 이상의 투구 기록이 필요합니다!")
         else:
             records = load_records()
             
             if st.session_state.user_id not in records:
                 records[st.session_state.user_id] = []
             
-            record = {
-                "date": str(game_date),
-                "opponent": opponent,
-                "inning": inning,
-                "pitch_count": pitch_count,
-                "pitch_type": pitch_type,
-                "result": result,
-                "location": location,
-                "speed": speed,
-                "notes": notes,
+            game_record = {
+                "date": str(st.session_state.game_session["date"]),
+                "opponent": st.session_state.game_session["opponent"],
+                "inning": st.session_state.game_session["current_inning"],
+                "position": st.session_state.game_session["position"],
+                "pitches": st.session_state.game_session["pitches"],
+                "runs": st.session_state.game_session["runs"],
+                "earned_runs": st.session_state.game_session["earned_runs"],
+                "errors": st.session_state.game_session["errors"],
                 "created_date": datetime.now().isoformat()
             }
             
-            records[st.session_state.user_id].append(record)
+            records[st.session_state.user_id].append(game_record)
             save_records(records)
-            st.success("✅ 기록이 저장되었습니다!")
+            st.success("✅ 경기 기록이 저장되었습니다!")
             st.balloons()
+            
+            # 세션 초기화
+            st.session_state.game_session = None
+            st.rerun()
 
 # ====================================
 # 📱 화면 5: 결과조회 화면
@@ -422,17 +700,19 @@ def screen_results():
         user_records = records[user_id]
         
         # 통계 계산
-        total_records = len(user_records)
-        total_pitches = sum([r["pitch_count"] for r in user_records])
-        avg_speed = sum([r["speed"] for r in user_records]) / len(user_records) if user_records else 0
+        total_games = len(user_records)
+        total_pitches = sum([len(r.get("pitches", [])) for r in user_records])
+        total_runs = sum([r.get("runs", 0) for r in user_records])
+        total_earned_runs = sum([r.get("earned_runs", 0) for r in user_records])
+        total_errors = sum([r.get("errors", 0) for r in user_records])
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("⚾ 총 경기수", total_records)
+            st.metric("⚾ 총 경기수", total_games)
         with col2:
             st.metric("📊 총 투구수", total_pitches)
         with col3:
-            st.metric("⚡ 평균 속도", f"{avg_speed:.1f} km/h")
+            st.metric("🏃 실점/자책점", f"{total_runs}/{total_earned_runs}")
         
         st.markdown("---")
         
@@ -447,15 +727,26 @@ def screen_results():
                     st.write(f"**이닝**: {record['inning']}")
                 
                 with col2:
-                    st.write(f"**공의 종류**: {record['pitch_type']}")
-                    st.write(f"**결과**: {record['result']}")
-                    st.write(f"**위치**: {record['location']}")
+                    st.write(f"**등판 구분**: {record.get('position', 'N/A')}")
+                    st.write(f"**총 투구수**: {len(record.get('pitches', []))}")
+                    st.write(f"**실점/자책점**: {record.get('runs', 0)}/{record.get('earned_runs', 0)}")
                 
                 with col3:
-                    st.write(f"**투구 수**: {record['pitch_count']}")
-                    st.write(f"**투구 속도**: {record['speed']} km/h")
-                    if record['notes']:
-                        st.write(f"**메모**: {record['notes']}")
+                    st.write(f"**에러**: {record.get('errors', 0)}")
+                
+                # 투구 상세 기록
+                st.markdown("#### 투구 기록")
+                pitches = record.get("pitches", [])
+                
+                if pitches:
+                    for pitch in pitches:
+                        st.write(
+                            f"- **투구 #{pitch['pitch_num']}**: {pitch['pitch_type']} {pitch['speed']}km/h | "
+                            f"{pitch['result']} (Zone {pitch['location']}) | "
+                            f"B{pitch['ball_count']} S{pitch['strike_count']}"
+                        )
+                else:
+                    st.info("투구 기록이 없습니다.")
 
 # ====================================
 # 🏠 메인 페이지
