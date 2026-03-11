@@ -68,10 +68,10 @@ if "current_screen" not in st.session_state:
     st.session_state.current_screen = "home"
 
 if "logged_in_user" not in st.session_state:
-    st.session_state.logged_in_user = None
+    st.session_state.logged_in_user = "admin"  # Admin 자동 로그인
 
 if "user_id" not in st.session_state:
-    st.session_state.user_id = None
+    st.session_state.user_id = "admin"  # Admin 자동 로그인
 
 # ====================================
 # 🎨 CSS 스타일 적용
@@ -96,6 +96,36 @@ st.markdown("""
             font-weight: bold;
             transition: background-color 0.3s;
         }
+        /* 터치패드 스타일 */
+        .strike-zone {
+            background-color: #c7d9f7;
+            border: 2px solid #6b8dd9;
+        }
+        .ball-zone-light {
+            background-color: #ffe4a0;
+            border: 2px solid #f0a000;
+        }
+        .ball-zone-blue {
+            background-color: #a0d0ff;
+            border: 2px solid #0070d0;
+        }
+        .ball-zone-pink {
+            background-color: #ffb3d9;
+            border: 2px solid #ff69b4;
+        }
+        .ball-zone-green {
+            background-color: #b3f7a0;
+            border: 2px solid #22bb44;
+        }
+        .zone-button {
+            font-weight: bold;
+            font-size: 16px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,10 +140,11 @@ def screen_home():
     if st.session_state.logged_in_user:
         col1, col2, col3 = st.columns([2, 1, 1])
         with col3:
-            if st.button("🚪 로그아웃", use_container_width=True):
-                st.session_state.logged_in_user = None
-                st.session_state.user_id = None
-                st.rerun()
+            if st.session_state.logged_in_user != "admin":  # admin은 로그아웃 불가
+                if st.button("🚪 로그아웃", use_container_width=True):
+                    st.session_state.logged_in_user = None
+                    st.session_state.user_id = None
+                    st.rerun()
         with col1:
             st.success(f"✅ {st.session_state.logged_in_user}님이 로그인 중입니다")
     
@@ -130,7 +161,10 @@ def screen_home():
     
     with col2:
         if st.button("📝 선수등록", use_container_width=True, key="btn_register"):
-            st.session_state.current_screen = "signup"
+            if st.session_state.logged_in_user:
+                st.session_state.current_screen = "player_register"
+            else:
+                st.session_state.current_screen = "signup"
             st.rerun()
     
     with col3:
@@ -207,53 +241,87 @@ def screen_signup():
                 st.session_state.logged_in_user = user_id
                 st.session_state.user_id = user_id
                 st.markdown("---")
-                st.markdown("### 📋 선수 정보 입력")
+                st.info("💡 이제 선수 정보를 입력해주세요. 계속 진행하려면 아래 버튼을 클릭하세요.")
                 
-                # 선수 정보 입력
-                name = st.text_input("👤 이름", placeholder="선수 이름")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    height = st.number_input("📏 키 (cm)", min_value=150, max_value=220, value=180)
-                with col2:
-                    weight = st.number_input("⚖️ 몸무게 (kg)", min_value=50, max_value=150, value=80)
-                
-                st.markdown("#### 📚 학력")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    elementary_grad = st.number_input("초등학교 졸업연도", min_value=2000, max_value=2026, value=2012)
-                with col2:
-                    middle_grad = st.number_input("중학교 졸업연도", min_value=2000, max_value=2026, value=2015)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    high_school = st.text_input("고등학교명", placeholder="고등학교명 입력")
-                with col2:
-                    high_grad = st.number_input("고등학교 졸업연도", min_value=2000, max_value=2026, value=2018)
-                
-                st.markdown("---")
-                
-                if st.button("💾 선수 정보 저장 및 홈으로", use_container_width=True):
-                    if not name or not high_school:
-                        st.error("❌ 이름과 고등학교명은 필수입니다!")
-                    else:
-                        players = load_players()
-                        players[user_id] = {
-                            "name": name,
-                            "height": height,
-                            "weight": weight,
-                            "elementary_graduation": elementary_grad,
-                            "middle_graduation": middle_grad,
-                            "high_school": high_school,
-                            "high_graduation": high_grad,
-                            "created_date": datetime.now().isoformat()
-                        }
-                        save_players(players)
-                        st.success("✅ 선수 정보가 저장되었습니다!")
-                        st.balloons()
-                        st.session_state.current_screen = "home"
-                        st.rerun()
+                if st.button("➡️ 선수 정보 입력으로 이동", use_container_width=True):
+                    st.session_state.current_screen = "player_register"
+                    st.rerun()
+
+# ====================================
+# 📱 화면 2-1: 선수등록 화면 (로그인 후)
+# ====================================
+def screen_player_register():
+    st.markdown('<div class="header">📝 선수등록</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    if st.button("← 뒤로가기", key="back_player_register"):
+        st.session_state.current_screen = "home"
+        st.rerun()
+    
+    st.markdown("### 📋 선수 정보 입력")
+    
+    # 선수 정보 입력
+    name = st.text_input("👤 이름", placeholder="선수 이름")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        height = st.number_input("📏 키 (cm)", min_value=150, max_value=220, value=180)
+    with col2:
+        weight = st.number_input("⚖️ 몸무게 (kg)", min_value=50, max_value=150, value=80)
+    
+    st.markdown("#### 📚 학력")
+    
+    # 초등학교
+    st.markdown("**초등학교**")
+    col1, col2 = st.columns(2)
+    with col1:
+        elementary_grad = st.number_input("초등학교 졸업연도", min_value=2000, max_value=2026, value=2012)
+    with col2:
+        elementary_team = st.text_input("초등학교팀", placeholder="팀명 입력")
+    
+    # 중학교
+    st.markdown("**중학교**")
+    col1, col2 = st.columns(2)
+    with col1:
+        middle_grad = st.number_input("중학교 졸업연도", min_value=2000, max_value=2026, value=2015)
+    with col2:
+        middle_team = st.text_input("중학교팀", placeholder="팀명 입력")
+    
+    # 고등학교
+    st.markdown("**고등학교**")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        high_school = st.text_input("고등학교명", placeholder="고등학교명 입력")
+    with col2:
+        high_grade = st.selectbox("학년", [1, 2, 3], index=2)
+    with col3:
+        high_grad = st.number_input("졸업연도", min_value=2000, max_value=2026, value=2018)
+    
+    st.markdown("---")
+    
+    if st.button("💾 선수 정보 저장", use_container_width=True):
+        if not name or not high_school:
+            st.error("❌ 이름과 고등학교명은 필수입니다!")
+        else:
+            players = load_players()
+            players[st.session_state.user_id] = {
+                "name": name,
+                "height": height,
+                "weight": weight,
+                "elementary_graduation": elementary_grad,
+                "elementary_team": elementary_team,
+                "middle_graduation": middle_grad,
+                "middle_team": middle_team,
+                "high_school": high_school,
+                "high_grade": high_grade,
+                "high_graduation": high_grad,
+                "created_date": datetime.now().isoformat()
+            }
+            save_players(players)
+            st.success("✅ 선수 정보가 저장되었습니다!")
+            st.balloons()
+            st.session_state.current_screen = "home"
+            st.rerun()
 
 # ====================================
 # 📱 화면 3: 로그인 화면
@@ -311,7 +379,7 @@ def screen_record_input():
     st.markdown(f"### {st.session_state.logged_in_user}님의 경기 기록")
     
     # ========== 세션 상태 초기화 ==========
-    if "game_session" not in st.session_state:
+    if "game_session" not in st.session_state or not isinstance(st.session_state.game_session, dict):
         st.session_state.game_session = {
             "date": datetime.now(),
             "opponent": "",
@@ -452,79 +520,76 @@ def screen_record_input():
             ["직구", "커브", "슬라이더", "체인지업", "싱크", "포크", "기타"]
         )
     
-    with col2:
-        speed = st.number_input("⚡ 투구 속도 (km/h)", min_value=80, max_value=160, value=130)
+    st.markdown("#### 결과 선택 - 터치패드")
+    st.write("**1~9번**: Strike (보라색) | **10~25번**: Ball (주변)")
     
-    st.markdown("#### 결과 선택")
+    # 터치패드 색상 및 타입 정의
+    zone_colors = {
+        # Strike Zone (1-9) - 보라색 트바리언트
+        1: ("1", "#a0a0ff"), 2: ("2", "#9090ff"), 3: ("3", "#a0a0ff"),
+        4: ("4", "#9090ff"), 5: ("5", "#8080ff"), 6: ("6", "#9090ff"),
+        7: ("7", "#a0a0ff"), 8: ("8", "#9090ff"), 9: ("9", "#a0a0ff"),
+        # Ball Zone (10-25) - 다양한 색상
+        10: ("10", "#ffe4a0"), 11: ("11", "#ffd080"), 12: ("12", "#ffcc66"), 
+        13: ("13", "#ffd080"), 14: ("14", "#ffe4a0"),
+        15: ("15", "#ffb3d9"), 16: ("16", "#a0d0ff"), 17: ("17", "#a0d0ff"), 
+        18: ("18", "#a0d0ff"), 19: ("19", "#ffb3d9"),
+        20: ("20", "#ffcc99"), 21: ("21", "#8b6914"), 22: ("22", "#ffffff"), 
+        23: ("23", "#a0d9ff"), 24: ("24", "#a0d9ff"), 25: ("25", "#a0d9ff"),
+    }
     
-    col1, col2 = st.columns(2)
+    # 5x5 그리드 레이아웃 - 이미지처럼 구성
+    rows = [
+        [10, 11, 12, 13, 14],
+        [15, 1, 2, 3, 16],
+        [17, 4, 5, 6, 18],
+        [19, 7, 8, 9, 20],
+        [21, 22, 23, 24, 25]
+    ]
     
-    with col1:
-        st.write("**방법 1: Zone 선택 (1~25)**")
-        st.markdown("""
-        - **1~9번**: Strike (그린존)
-        - **10~25번**: Ball
-        
-        |  |  |  |  |
-        |---|---|---|---|
-        |1|2|3|🟩|
-        |4|5|6|🟨|
-        |7|8|9|🟥|
-        |10|11|12|13|14|
-        |15|16|17|18|19|
-        |20|21|22|23|24|
-        |25| | | |
-        """)
-        zone_input = st.number_input("Zone 번호 입력 (1-25)", min_value=1, max_value=25, value=5, key="zone_input")
+    for row_num, row in enumerate(rows):
+        cols = st.columns(5)
+        for col_num, zone_num in enumerate(row):
+            with cols[col_num]:
+                label, color = zone_colors[zone_num]
+                if st.button(label, key=f"zone_{zone_num}", use_container_width=True):
+                    st.session_state.selected_zone = zone_num
     
-    with col2:
-        st.write("**방법 2: 수동 선택**")
-        col2_1, col2_2 = st.columns(2)
-        
-        with col2_1:
-            result_type = st.selectbox(
-                "결과",
-                ["Strike", "Ball"],
-                key="result_type"
-            )
-        
-        with col2_2:
-            location_options = [
-                "중앙(5)", "우상(3)", "우중(6)", "우하(9)",
-                "중상(2)", "중하(8)",
-                "좌상(1)", "좌중(4)", "좌하(7)",
-                "좌상외(11)", "중상외(12)", "우상외(13)",
-                "좌중외(15)", "중외(17)", "우중외(18)",
-                "좌하외(20)", "중하외(22)", "우하외(24)",
-                "기타(25)"
-            ]
-            location_select = st.selectbox(
-                "Location (Zone)",
-                location_options,
-                index=0
-            )
-            # Zone 번호 추출
-            location = int(location_select.split("(")[1].split(")")[0])
     
     st.markdown("---")
     
-    col_pitch_1, col_pitch_2 = st.columns(2)
+    # 선택된 zone 표시
+    if "selected_zone" not in st.session_state:
+        st.session_state.selected_zone = None
     
-    with col_pitch_1:
-        if st.button("⚾ Zone 선택으로 투구 완료", use_container_width=True):
-            # Zone 선택 처리
-            if 1 <= zone_input <= 9:
-                result = "Strike"
-                zone_location = zone_input
-            else:
-                result = "Ball"
-                zone_location = zone_input
-            
-            # 볼카운트 업데이트 (야구 규칙)
+    if st.session_state.selected_zone:
+        selected_zone = st.session_state.selected_zone
+        result = "Strike" if 1 <= selected_zone <= 9 else "Ball"
+        st.info(f"선택된 Zone: {selected_zone} ({result})")
+        
+        # 특수상황 선택
+        st.markdown("#### 특수상황 (선택사항)")
+        col1, col2, col3, col4 = st.columns(4)
+        special_situation = None
+        
+        with col1:
+            if st.button("폭투", use_container_width=True, key="wild_pitch"):
+                special_situation = "폭투"
+        with col2:
+            if st.button("패스드볼", use_container_width=True, key="passed_ball"):
+                special_situation = "패스드볼"
+        with col3:
+            if st.button("보크", use_container_width=True, key="balk"):
+                special_situation = "보크"
+        with col4:
+            if st.button("견제", use_container_width=True, key="pickoff"):
+                special_situation = "견제"
+        
+        if st.button("✅ 투구 완료", use_container_width=True, key="btn_pitch_complete"):
+            # 볼카운트 업데이트
             if result == "Strike":
                 if st.session_state.game_session["strike_count"] < 2:
                     st.session_state.game_session["strike_count"] += 1
-                # 3스트라이크: 계속 투구 가능 (파울 처리)
             else:
                 st.session_state.game_session["ball_count"] += 1
             
@@ -532,53 +597,96 @@ def screen_record_input():
             pitch_record = {
                 "pitch_num": len(st.session_state.game_session["pitches"]) + 1,
                 "pitch_type": pitch_type,
-                "speed": speed,
                 "result": result,
-                "location": zone_location,
+                "location": selected_zone,
+                "special_situation": special_situation,
                 "ball_count": st.session_state.game_session["ball_count"],
                 "strike_count": st.session_state.game_session["strike_count"],
                 "out_count": st.session_state.game_session["out_count"]
             }
             st.session_state.game_session["pitches"].append(pitch_record)
+            st.session_state.selected_zone = None
             st.success(f"✅ 투구 #{len(st.session_state.game_session['pitches'])} 완료 - {result}")
             st.rerun()
     
-    with col_pitch_2:
-        if st.button("⚾ 수동 선택으로 투구 완료", use_container_width=True):
-            if result_type == "Strike":
-                if st.session_state.game_session["strike_count"] < 2:
-                    st.session_state.game_session["strike_count"] += 1
-            else:
-                st.session_state.game_session["ball_count"] += 1
-            
-            pitch_record = {
-                "pitch_num": len(st.session_state.game_session["pitches"]) + 1,
-                "pitch_type": pitch_type,
-                "speed": speed,
-                "result": result_type,
-                "location": location,
-                "ball_count": st.session_state.game_session["ball_count"],
-                "strike_count": st.session_state.game_session["strike_count"],
-                "out_count": st.session_state.game_session["out_count"]
-            }
-            st.session_state.game_session["pitches"].append(pitch_record)
-            st.success(f"✅ 투구 #{len(st.session_state.game_session['pitches'])} 완료 - {result_type}")
-            st.rerun()
+    st.markdown("---")
+    st.markdown("### 🏃 [타자]")
+    
+    # 타자 선택 옵션
+    batter_action = st.radio(
+        "타자 선택",
+        ["스윙", "파울", "Hit"],
+        horizontal=True
+    )
     
     st.markdown("---")
-    st.markdown("### 🏃 타격 결과 (타자가 타격한 경우)")
     
-    col_hit_1, col_hit_2 = st.columns(2)
+    # 스윙 선택
+    if batter_action == "스윙":
+        st.markdown("#### 스윙 결과")
+        
+        if st.session_state.game_session["strike_count"] < 2:
+            st.write("**현재 상황**: 2스트라이크 이하")
+            if st.button("✅ 볼카운트 증가 (스윙 무)", use_container_width=True):
+                st.session_state.game_session["strike_count"] += 1
+                st.success(f"✅ 스트라이크 증가 - B{st.session_state.game_session['ball_count']} S{st.session_state.game_session['strike_count']}")
+                st.rerun()
+        else:
+            st.write("**현재 상황**: 2스트라이크 이상 (삼진 위험)")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("❌ 낫아웃", use_container_width=True):
+                    st.session_state.game_session["out_count"] += 1
+                    st.success(f"✅ 낫아웃 - 아웃카운트: {st.session_state.game_session['out_count']}")
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔴 삼진", use_container_width=True):
+                    st.session_state.game_session["out_count"] += 1
+                    st.success(f"✅ 삼진! - 아웃카운트: {st.session_state.game_session['out_count']}")
+                    st.rerun()
     
-    with col_hit_1:
+    # 파울 선택
+    elif batter_action == "파울":
+        st.markdown("#### 파울 결과")
+        
+        foul_type = st.radio(
+            "파울 종류",
+            ["파울 플라이", "파울 땅볼"],
+            horizontal=True
+        )
+        
+        if foul_type == "파울 플라이":
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("✅ 파울 플라이 (아웃)", use_container_width=True):
+                    st.session_state.game_session["out_count"] += 1
+                    st.success(f"✅ 파울 플라이 아웃! - 아웃카운트: {st.session_state.game_session['out_count']}")
+                    st.rerun()
+            
+            with col2:
+                if st.button("✅ 파울 플라이 (세이프)", use_container_width=True):
+                    st.write("파울이 기록되었습니다.")
+                    st.rerun()
+        
+        else:  # 파울 땅볼
+            if st.button("✅ 파울 땅볼", use_container_width=True):
+                st.write("파울 땅볼이 기록되었습니다.")
+                st.rerun()
+    
+    # Hit 선택
+    elif batter_action == "Hit":
+        st.markdown("#### 안타 결과")
+        
         hit_type = st.selectbox(
-            "타격 결과",
-            ["안타 없음", "내야땅볼", "외야땅볼", "번트", "플라이", "라인드라이브", "홈런"],
+            "안타 종류",
+            ["내야땅볼", "외야땅볼", "번트", "플라이", "라인드라이브", "홈런"],
             key="hit_type"
         )
-    
-    detail = None
-    with col_hit_2:
+        
+        detail = None
         if hit_type != "안타 없음":
             detail_options = {
                 "내야땅볼": ["1루지", "2루지", "3루지", "유격수", "2루수"],
@@ -590,16 +698,14 @@ def screen_record_input():
             }
             detail = st.selectbox(
                 "상세 내용",
-                detail_options.get(hit_type, [])
+                detail_options.get(hit_type, []),
+                key="hit_detail"
             )
-        else:
-            st.write("타자가 타격하지 않음")
-    
-    if hit_type != "안타 없음":
-        st.markdown("---")
-        error_flag = st.checkbox("에러 발생")
         
-        if st.button("✅ 타격 결과 저장", use_container_width=True):
+        st.markdown("---")
+        error_flag = st.checkbox("에러 발생", key="hit_error")
+        
+        if st.button("✅ 타자결과 저장", use_container_width=True):
             # 홈을 누른 경우 실점 처리
             if hit_type == "홈런":
                 st.session_state.game_session["runs"] += 1
@@ -613,14 +719,15 @@ def screen_record_input():
                 st.session_state.game_session["bases"]["1루"] = True
             
             st.success(f"✅ {hit_type} ({detail}) 저장됨")
-            st.balloons()
+            st.rerun()
     
     st.markdown("---")
     st.markdown("### 📝 투구 기록")
     
     if st.session_state.game_session["pitches"]:
         for pitch in st.session_state.game_session["pitches"]:
-            st.write(f"**투구 #{pitch['pitch_num']}** | {pitch['pitch_type']} {pitch['speed']}km/h | {pitch['result']} (Zone {pitch['location']}) | B{pitch['ball_count']} S{pitch['strike_count']}")
+            special = f" | {pitch.get('special_situation', '')}" if pitch.get('special_situation') else ""
+            st.write(f"**투구 #{pitch['pitch_num']}** | {pitch['pitch_type']} | {pitch['result']} (Zone {pitch['location']}) | B{pitch['ball_count']} S{pitch['strike_count']}{special}")
     else:
         st.info("투구 기록이 없습니다.")
     
@@ -688,9 +795,9 @@ def screen_results():
             with col2:
                 st.metric("몸무게", f"{player['weight']}kg")
             with col3:
-                st.metric("중학 졸업", player['middle_graduation'])
+                st.metric("중학 졸업", f"{player['middle_graduation']} ({player.get('middle_team', '-')})")
             with col4:
-                st.metric("고등학 졸업", f"{player['high_graduation']} ({player['high_school']})")
+                st.metric("고등학", f"{player['high_graduation']} {player['high_grade']}학년 ({player['high_school']})")
             
             st.markdown("---")
         
@@ -741,7 +848,7 @@ def screen_results():
                 if pitches:
                     for pitch in pitches:
                         st.write(
-                            f"- **투구 #{pitch['pitch_num']}**: {pitch['pitch_type']} {pitch['speed']}km/h | "
+                            f"- **투구 #{pitch['pitch_num']}**: {pitch['pitch_type']} | "
                             f"{pitch['result']} (Zone {pitch['location']}) | "
                             f"B{pitch['ball_count']} S{pitch['strike_count']}"
                         )
@@ -757,6 +864,8 @@ def main():
         screen_home()
     elif st.session_state.current_screen == "signup":
         screen_signup()
+    elif st.session_state.current_screen == "player_register":
+        screen_player_register()
     elif st.session_state.current_screen == "login":
         screen_login()
     elif st.session_state.current_screen == "record_input":
