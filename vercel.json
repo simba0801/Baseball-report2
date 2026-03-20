@@ -1,6 +1,5 @@
 {
-  "buildCommand": "cd baseball-report-nextjs && npm install && npm run build",
-  "outputDirectory": "baseball-report-nextjs/.next",
+  "root": "baseball-report-nextjs",
   "framework": "nextjs",
   "cleanUrls": true,
   "trailingSlash": false
