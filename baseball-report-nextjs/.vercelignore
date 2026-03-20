@@ -1,0 +1,12 @@
+# Ignore Python files and parent directory
+../*.py
+../pyproject.toml
+../requirements.txt
+../venv
+../__pycache__
+../.git
+
+# Ignore other non-essential files
+.env.local
+.env.*.local
+*.log
