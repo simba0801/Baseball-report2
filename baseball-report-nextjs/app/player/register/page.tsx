@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { Header, Sidebar, Card, Button, Input } from "@/components";
 import { useRecords } from "@/hooks";
-import { Player, PlayerEducation } from "@/types";
+import { Player } from "@/types";
 
 export default function PlayerRegisterPage() {
   const { savePlayer, isLoading } = useRecords();
@@ -39,7 +38,7 @@ export default function PlayerRegisterPage() {
 
   const handleEducationChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    level: keyof PlayerEducation
+    level: "elementary" | "middle" | "high_school"
   ) => {
     const { value } = e.target;
     setFormData((prev) => ({

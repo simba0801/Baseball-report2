@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Header, Sidebar, Card, StatCard, Button } from "@/components";
+import { Header, Sidebar, Card, StatCard } from "@/components";
 import { useRecords } from "@/hooks";
 import { GameStats } from "@/types";
 
 export default function HomePage() {
-  const { stats, records, isLoading } = useRecords();
+  const { stats } = useRecords();
   const [displayStats, setDisplayStats] = useState<GameStats | null>(null);
 
   useEffect(() => {

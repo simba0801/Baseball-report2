@@ -54,8 +54,8 @@ export default function RecordInputPage() {
 
     const pitch: Pitch = {
       pitch_num: gameSession.pitches.length + 1,
-      pitch_type: "fastball", // 기본값
-      result,
+      pitch_type: "직구", // 기본값
+      result: result === "ball" ? "Ball" : "Strike",
       location: selectedZone,
       special_situation: null,
       ball_count: result === "ball" ? gameSession.ball_count + 1 : gameSession.ball_count,

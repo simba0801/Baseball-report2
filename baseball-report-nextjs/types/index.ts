@@ -21,14 +21,18 @@ export interface PlayerEducation {
 }
 
 export interface Player {
-  user_id: string;
+  player_id: string;
   name: string;
+  position: string;
   height: number; // cm
   weight: number; // kg
-  elementary: PlayerEducation;
-  middle: PlayerEducation;
-  high_school: PlayerEducation;
-  created_date: string;
+  birth_date: string;
+  phone: string;
+  education: {
+    elementary: string;
+    middle: string;
+    high_school: string;
+  };
 }
 
 // ===== 투구 데이터 =====

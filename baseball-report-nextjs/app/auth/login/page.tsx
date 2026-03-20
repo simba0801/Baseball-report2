@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error } = useAuth();
   const [formData, setFormData] = useState({
     userId: "",
     password: "",
