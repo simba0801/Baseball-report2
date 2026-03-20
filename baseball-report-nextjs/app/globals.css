@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-on-surface;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Tailwind CSS custom utilities */
+.ghost-shadow {
+  box-shadow: 0 12px 32px -4px rgba(17, 29, 35, 0.06);
+}
+
+.no-line-card {
+  border: none;
+}
+
+/* Typography */
+@layer components {
+  .text-headline-lg {
+    @apply text-2xl font-black font-headline;
+  }
+
+  .text-headline-md {
+    @apply text-xl font-bold font-headline;
+  }
+
+  .text-headline-sm {
+    @apply text-lg font-bold font-headline;
+  }
+
+  .text-body-lg {
+    @apply text-base font-normal font-body;
+  }
+
+  .text-body-md {
+    @apply text-sm font-normal font-body;
+  }
+
+  .text-body-sm {
+    @apply text-xs font-normal font-body;
+  }
+
+  .text-label-lg {
+    @apply text-sm font-medium font-label;
+  }
+
+  .text-label-md {
+    @apply text-xs font-medium font-label;
+  }
+
+  .text-label-sm {
+    @apply text-[10px] font-medium font-label;
+  }
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply dark:bg-slate-950 dark:text-slate-50;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+}
+
+/* Selection */
+::selection {
+  background-color: #005e93;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: #005e93;
+  color: white;
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid #005e93;
+  outline-offset: 2px;
+}

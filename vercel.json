@@ -1,15 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "baseball-report-nextjs/package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/.*",
-      "dest": "baseball-report-nextjs"
-    }
-  ]
+  "buildCommand": "cd baseball-report-nextjs && npm install && npm run build",
+  "outputDirectory": "baseball-report-nextjs/.next",
+  "framework": "nextjs",
+  "cleanUrls": true,
+  "trailingSlash": false
 }
