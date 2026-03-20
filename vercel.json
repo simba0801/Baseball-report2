@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "baseball-report-nextjs/package.json",
+      "use": "@vercel/next",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "baseball-report-nextjs/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
